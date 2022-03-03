@@ -30,3 +30,8 @@
 *.exe
 *.out
 *.app
+
+# Uneral + Visual Studio 
+Intermediate
+.vs 
+*.pdb 
