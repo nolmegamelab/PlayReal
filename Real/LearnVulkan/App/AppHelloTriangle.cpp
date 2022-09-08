@@ -6,16 +6,20 @@ namespace real
 
 AppHelloTriangle::AppHelloTriangle()
   : window_{nullptr}
-  , instance_{nullptr}
-  , debugMessenger_{nullptr}
+  , instance_{VK_NULL_HANDLE}
+  , physicalDevice_{VK_NULL_HANDLE}
+  , debugMessenger_{VK_NULL_HANDLE}
+  , device_{VK_NULL_HANDLE}
 {
 }
 
 AppHelloTriangle::~AppHelloTriangle()
 {
   assert(window_ == nullptr);
-  assert(instance_ == nullptr);
-  assert(debugMessenger_ == nullptr);
+  assert(instance_ == VK_NULL_HANDLE);
+  assert(physicalDevice_ == VK_NULL_HANDLE);
+  assert(debugMessenger_ == VK_NULL_HANDLE);
+  assert(device_ == VK_NULL_HANDLE);
 }
 
 void AppHelloTriangle::Initialize()
@@ -23,6 +27,8 @@ void AppHelloTriangle::Initialize()
   InitializeWindow();
   InitializeVulkan();
   InitializeDebugMessenger();
+  InitializePhysicalDevice();
+  InitializeDevice();
 }
 
 void AppHelloTriangle::Run()
@@ -35,7 +41,9 @@ void AppHelloTriangle::Run()
 
 void AppHelloTriangle::Finish()
 {
-  // DestroyDebugMessenger();
+  DestroyDevice();
+  DestroyPhysicalDevice();
+  DestroyDebugMessenger();
   DestroyVulkan();
   DestroyWindow();
 }
@@ -116,6 +124,62 @@ void AppHelloTriangle::InitializeDebugMessenger()
   }
 }
 
+void AppHelloTriangle::InitializePhysicalDevice()
+{
+  uint32_t deviceCount = 0; 
+  vkEnumeratePhysicalDevices(instance_, &deviceCount, nullptr);
+
+  if (deviceCount == 0)
+  {
+    throw std::runtime_error("device is not available");
+  }
+
+  std::vector<VkPhysicalDevice> devices(deviceCount);
+  vkEnumeratePhysicalDevices(instance_, &deviceCount, devices.data());
+
+  for (auto device : devices)
+  {
+    if (IsDeviceSuitable(device))
+    {
+      physicalDevice_ = device;
+      break;
+    }
+  }
+
+  if (physicalDevice_ == VK_NULL_HANDLE)
+  {
+    throw std::runtime_error("suitable device is not found");
+  }
+}
+
+void AppHelloTriangle::InitializeDevice()
+{
+  QueueFamilyIndices indices = FindQueueFamilies(physicalDevice_);
+
+  VkDeviceQueueCreateInfo queueCreateInfo{};
+  queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
+  queueCreateInfo.queueCount = 1;
+
+  float queuePriority = 1.0f; 
+  queueCreateInfo.pQueuePriorities = &queuePriority;
+
+  VkPhysicalDeviceFeatures deviceFeatures{};
+
+  VkDeviceCreateInfo createInfo{};
+  createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+  createInfo.pQueueCreateInfos = &queueCreateInfo;
+  createInfo.queueCreateInfoCount = 1;
+  createInfo.pEnabledFeatures = &deviceFeatures;
+
+  auto result = vkCreateDevice(physicalDevice_, &createInfo, nullptr, &device_);
+
+  if (result != VK_SUCCESS)
+  {
+    throw std::runtime_error("cannot create a logical device");
+  }
+}
+
 void AppHelloTriangle::DestroyWindow()
 {
   glfwDestroyWindow(window_);
@@ -128,7 +192,7 @@ void AppHelloTriangle::DestroyVulkan()
 {
   vkDestroyInstance(instance_, nullptr);
 
-  instance_ = nullptr;
+  instance_ = VK_NULL_HANDLE;
 }
 
 void AppHelloTriangle::DestroyDebugMessenger()
@@ -142,7 +206,51 @@ void AppHelloTriangle::DestroyDebugMessenger()
     func(instance_, debugMessenger_, nullptr);
   }
 
-  debugMessenger_ = nullptr;
+  debugMessenger_ = VK_NULL_HANDLE;
+}
+
+void AppHelloTriangle::DestroyPhysicalDevice()
+{
+  // NOTE: PhysicalDevice는 고른다는 개념으로 정리가 필요 없는 것으로 보인다. 
+  // 나중에 더 익숙해지면 다시 확인한다. 
+
+  physicalDevice_ = VK_NULL_HANDLE;
+}
+
+void AppHelloTriangle::DestroyDevice()
+{
+  vkDestroyDevice(device_, nullptr);
+  device_ = VK_NULL_HANDLE;
+}
+
+AppHelloTriangle::QueueFamilyIndices AppHelloTriangle::FindQueueFamilies(VkPhysicalDevice device)
+{
+  QueueFamilyIndices indices;
+
+  uint32_t queueFamilyCount = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+  std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+  int i = 0;
+  for (const auto& queueFamily : queueFamilies) 
+  {
+    if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) 
+    {
+      indices.graphicsFamily = i;
+    }
+
+    i++;
+  }
+
+  return indices;
+}
+
+bool AppHelloTriangle::IsDeviceSuitable(VkPhysicalDevice device)
+{
+  QueueFamilyIndices indices = FindQueueFamilies(device);
+  return indices.graphicsFamily.has_value();
 }
 
 std::vector<const char*> AppHelloTriangle::GetRequiredExtensions()

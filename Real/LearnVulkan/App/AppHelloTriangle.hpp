@@ -2,6 +2,7 @@
 
 #include <App/App.hpp>
 
+#include <optional>
 #include <vector>
 
 namespace real
@@ -9,6 +10,12 @@ namespace real
 
 class AppHelloTriangle : public App
 {
+public: 
+  struct QueueFamilyIndices
+  {
+    std::optional<uint32_t> graphicsFamily;
+  };
+
 public: 
   AppHelloTriangle(); 
 
@@ -35,11 +42,23 @@ private:
 
   void InitializeDebugMessenger();
 
+  void InitializePhysicalDevice();
+
+  void InitializeDevice();
+
   void DestroyWindow();
 
   void DestroyVulkan();
 
   void DestroyDebugMessenger();
+
+  void DestroyPhysicalDevice();
+
+  void DestroyDevice();
+
+  QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
+
+  bool IsDeviceSuitable(VkPhysicalDevice device);
 
   bool CheckValidationLayers();
 
@@ -62,6 +81,8 @@ private:
 private: 
   GLFWwindow* window_;
   VkInstance instance_;
+  VkPhysicalDevice physicalDevice_;
+  VkDevice device_;
   VkDebugUtilsMessengerEXT debugMessenger_;
 };
 
