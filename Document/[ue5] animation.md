@@ -68,6 +68,10 @@ Bone이나 애님 데이터에 관한 정의가 들어 있다.
 
 RPG에 적합한 도구가 아닌가 싶다. 
 
+## Animation Graph 
+
+
+
 ## Animation Sequencer
 
 
